@@ -1,118 +1,51 @@
-import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { ReadOnlyPhotoBookView } from "@/components/ReadOnlyPhotoBookView";
-import { Prisma } from "@prisma/client";
+import { Section } from "@/types/layout";
+import { Photo, Note } from "@prisma/client";
 
-interface Photo {
-  id: string;
-  url: string;
-  caption?: string;
-  takenAt?: Date;
-}
-
-interface Section {
-  id: string;
-  title: string;
-  content: Array<{
-    id: string;
-    type: string;
-    photos?: Photo[];
-    content?: string;
-  }>;
-}
-
-interface SharedPageProps {
+interface PageProps {
   params: {
     tripId: string;
   };
 }
 
-export default async function SharedPage({ params }: SharedPageProps) {
-  // Wait for params to be available as per Next.js recommendation
-  const tripId = await params.tripId;
-
-  try {
-    // Fetch trip data with photos
-    const trip = (await prisma.trip.findUnique({
-      where: { id: tripId },
-      include: {
-        photos: {
-          orderBy: { createdAt: "desc" },
+export default async function SharePage({ params }: PageProps) {
+  const trip = await prisma.trip.findFirst({
+    where: {
+      id: params.tripId,
+    },
+    include: {
+      photos: {
+        orderBy: {
+          createdAt: "desc",
         },
-        countries: true,
-        notes: {
-          orderBy: { createdAt: "desc" },
+      },
+      countries: true,
+      notes: {
+        orderBy: {
+          createdAt: "desc",
         },
-        layout: true,
       },
-    })) as Prisma.TripGetPayload<{
-      include: {
-        photos: true;
-        countries: true;
-        notes: true;
-        layout: true;
-      };
-    }>;
+      layout: true,
+    },
+  });
 
-    if (!trip) {
-      notFound();
-    }
+  if (!trip) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <h1 className="text-2xl font-bold">Trip not found</h1>
+      </div>
+    );
+  }
 
-    // If there's a saved layout, use it
-    if (trip.layout?.content) {
-      const layout = trip.layout.content as Section[];
+  // If there's a saved layout, use it
+  if (trip.layout?.content) {
+    const layout = JSON.parse(JSON.stringify(trip.layout.content)) as Section[];
 
-      console.log("[SHARED_VIEW] Rendering trip with layout:", {
-        id: trip.id,
-        title: trip.title,
-        sectionCount: layout.length,
-      });
-
-      return (
-        <div className="min-h-screen bg-gray-50">
-          <ReadOnlyPhotoBookView
-            title={trip.title}
-            location={trip.location}
-            startDate={trip.startDate}
-            endDate={trip.endDate}
-            countries={trip.countries}
-            sections={layout}
-          />
-        </div>
-      );
-    }
-
-    // If no layout, use default organization
-    const sections: Section[] = [
-      {
-        id: "main",
-        title: "Trip Memories",
-        content: [
-          {
-            id: "default",
-            type: "triple",
-            photos: trip.photos.map((photo) => ({
-              id: photo.id,
-              url: photo.url,
-              caption: photo.caption || undefined,
-              takenAt: photo.takenAt || undefined,
-            })),
-          },
-          ...trip.notes.map((note) => ({
-            id: note.id,
-            type: "note",
-            content: note.content,
-          })),
-        ],
-      },
-    ];
-
-    console.log("[SHARED_VIEW] Rendering trip with default layout:", {
+    console.log("[SHARED_VIEW] Rendering trip with layout:", {
       id: trip.id,
       title: trip.title,
-      photoCount: trip.photos.length,
-      noteCount: trip.notes.length,
-      countryCount: trip.countries.length,
+      sectionCount: layout.length,
     });
 
     return (
@@ -123,12 +56,55 @@ export default async function SharedPage({ params }: SharedPageProps) {
           startDate={trip.startDate}
           endDate={trip.endDate}
           countries={trip.countries}
-          sections={sections}
+          sections={layout}
         />
       </div>
     );
-  } catch (error) {
-    console.error("[SHARED_VIEW] Error:", error);
-    notFound();
   }
+
+  // If no layout exists, create a default one
+  const photos = trip.photos.map((photo: Photo) => ({
+    id: photo.id,
+    url: photo.url,
+    caption: photo.caption || "",
+    takenAt: photo.takenAt || undefined,
+  }));
+
+  const notes = trip.notes.map((note: Note) => ({
+    id: note.id,
+    content: note.content,
+    type: note.type,
+    date: note.date || undefined,
+  }));
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <ReadOnlyPhotoBookView
+        title={trip.title}
+        location={trip.location}
+        startDate={trip.startDate}
+        endDate={trip.endDate}
+        countries={trip.countries}
+        sections={[
+          {
+            id: "default",
+            title: "Photos",
+            content: [
+              ...photos.map((photo) => ({
+                id: photo.id,
+                type: "single" as const,
+                photos: [photo],
+              })),
+              ...notes.map((note) => ({
+                id: note.id,
+                type: "summary" as const,
+                content: note.content,
+                date: note.date,
+              })),
+            ],
+          },
+        ]}
+      />
+    </div>
+  );
 }
