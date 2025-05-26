@@ -1,12 +1,9 @@
-import { clerkMiddleware } from "@clerk/nextjs/server";
+import { authMiddleware } from "@clerk/nextjs";
 
-export default clerkMiddleware();
+export default authMiddleware({
+  publicRoutes: ["/", "/sign-in", "/sign-up", "/share/:tripId"],
+});
 
 export const config = {
-  matcher: [
-    // Skip Next.js internals and all static files
-    "/((?!.*\\..*|_next).*)",
-    // Optional: Allow access to static files
-    "/(api|trpc)(.*)",
-  ],
+  matcher: ["/((?!.+\\.[\\w]+$|_next).*)", "/", "/(api|trpc)(.*)"],
 };
