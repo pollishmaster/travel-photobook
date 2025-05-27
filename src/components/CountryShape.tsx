@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { GB_SVG } from "./country-maps/GB";
 import { US_SVG } from "./country-maps/US";
+import { KH_SVG } from "./country-maps/KH";
 
 interface CountryShapeProps {
   code: string;
@@ -12,6 +13,7 @@ interface CountryShapeProps {
 const countryToSvg: Record<string, React.FC<React.SVGProps<SVGSVGElement>>> = {
   GB: GB_SVG,
   US: US_SVG,
+  KH: KH_SVG,
 };
 
 export function CountryShape({ code, className = "" }: CountryShapeProps) {

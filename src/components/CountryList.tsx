@@ -15,11 +15,17 @@ interface Country {
 interface CountryListProps {
   countries: Country[];
   tripId: string;
+  notes: TripNote[];
+  onAddNote: (note: TripNoteInput) => Promise<void>;
+  onDeleteNote: (noteId: string) => Promise<void>;
 }
 
 export function CountryList({
   countries: initialCountries,
   tripId,
+  notes,
+  onAddNote,
+  onDeleteNote,
 }: CountryListProps) {
   const [countries, setCountries] = useState(initialCountries);
   const [isAdding, setIsAdding] = useState(false);
@@ -147,6 +153,7 @@ const COUNTRIES: [string, string][] = [
   // Add all countries here - I'll show just a few for brevity
   ["US", "United States"],
   ["GB", "United Kingdom"],
+  ["KH", "Cambodia"],
   ["FR", "France"],
   ["DE", "Germany"],
   ["IT", "Italy"],

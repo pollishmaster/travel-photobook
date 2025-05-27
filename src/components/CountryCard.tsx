@@ -39,7 +39,7 @@ export function CountryCard({ country, onRemove }: CountryCardProps) {
       return "bg-green-200";
     }
     // Asia
-    if (["JP", "CN", "KR", "IN", "TH", "VN", "SG"].includes(code)) {
+    if (["JP", "CN", "KR", "IN", "TH", "VN", "SG", "KH"].includes(code)) {
       return "bg-red-200";
     }
     // Africa

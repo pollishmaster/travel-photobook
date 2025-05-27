@@ -11,6 +11,54 @@ interface PhotoUploadFormProps {
 
 export function PhotoUploadForm({ tripId }: PhotoUploadFormProps) {
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadCount, setUploadCount] = useState(0);
+  const [totalUploads, setTotalUploads] = useState(0);
+  const [uploadedPhotos, setUploadedPhotos] = useState<string[]>([]);
+
+  const handleUpload = async (result: any) => {
+    try {
+      const response = await fetch("/api/photos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url: result.info.secure_url,
+          tripId: tripId,
+          caption: result.info.original_filename,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to save photo");
+      }
+
+      const data = await response.json();
+      console.log("Photo created:", data);
+
+      // Update upload progress
+      setUploadedPhotos((prev) => [...prev, data.id]);
+      setUploadCount((prev) => {
+        const newCount = prev + 1;
+        console.log(`Uploaded ${newCount} of ${totalUploads} photos`);
+
+        // Check if this was the last photo
+        if (newCount === totalUploads) {
+          console.log("All photos uploaded, redirecting...");
+          toast.success(
+            `${totalUploads} photo${totalUploads > 1 ? "s" : ""} uploaded!`
+          );
+          // Add a small delay before redirecting to ensure the toast is shown
+          setTimeout(() => {
+            window.location.href = `/trips/${tripId}`;
+          }, 1000);
+        }
+        return newCount;
+      });
+    } catch (error) {
+      console.error("Error:", error);
+      toast.error("Failed to save photo");
+      setIsUploading(false);
+    }
+  };
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
@@ -20,36 +68,41 @@ export function PhotoUploadForm({ tripId }: PhotoUploadFormProps) {
           uploadPreset="teaakx98"
           options={{
             cloudName: "dxox6yufr",
-            maxFiles: 1,
+            maxFiles: 10,
+            sources: ["local", "url", "camera"],
+            multiple: true,
+          }}
+          onQueuesStart={(result: any) => {
+            console.log("Upload queue started:", result);
+            if (result && result.info && result.info.files) {
+              const count = result.info.files.length;
+              console.log(`Starting upload of ${count} photos`);
+              setTotalUploads(count);
+              setUploadCount(0);
+              setUploadedPhotos([]);
+              setIsUploading(true);
+            }
           }}
           onSuccess={(result: any) => {
-            console.log("Success!", result);
-            setIsUploading(true);
-
-            fetch("/api/photos", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                url: result.info.secure_url,
-                tripId: tripId,
-                caption: result.info.original_filename,
-              }),
-            })
-              .then((res) => res.json())
-              .then((data) => {
-                console.log("Photo created:", data);
-                toast.success("Photo uploaded!");
-                window.location.href = `/trips/${tripId}`;
-              })
-              .catch((err) => {
-                console.error("Error:", err);
-                toast.error("Failed to save photo");
-              })
-              .finally(() => setIsUploading(false));
+            if (result && result.event === "success") {
+              console.log("Upload success:", result);
+              handleUpload(result);
+            }
           }}
           onError={(error: any) => {
             console.error("Upload error:", error);
             toast.error("Upload failed");
+            setIsUploading(false);
+          }}
+          onClose={() => {
+            console.log("Upload widget closed");
+            // Only reset if we haven't completed all uploads
+            if (uploadCount < totalUploads) {
+              setIsUploading(false);
+              setUploadCount(0);
+              setTotalUploads(0);
+              setUploadedPhotos([]);
+            }
           }}
         >
           {({ open }) => (
@@ -63,7 +116,9 @@ export function PhotoUploadForm({ tripId }: PhotoUploadFormProps) {
             >
               <Image className="w-8 h-8 text-gray-400" />
               <p className="text-sm text-gray-600">
-                {isUploading ? "Uploading..." : "Click to upload a photo"}
+                {isUploading
+                  ? `Uploading ${uploadCount} of ${totalUploads} photos...`
+                  : "Click to upload photos"}
               </p>
               <p className="text-xs text-gray-500">
                 Supported formats: JPG, PNG, GIF, WebP

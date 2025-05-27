@@ -16,6 +16,7 @@ export const countryToContinent: { [key: string]: string } = {
   JP: "asia",
   CN: "asia",
   IN: "asia",
+  KH: "asia",
 
   // Africa
   ZA: "africa",

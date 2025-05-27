@@ -98,6 +98,8 @@ export function PhotoBookView({
   const [sections, setSections] = useState<Section[]>(initialLayout || []);
   const [isAddingSection, setIsAddingSection] = useState(false);
   const [newSectionTitle, setNewSectionTitle] = useState("");
+  const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
+  const [editingSectionTitle, setEditingSectionTitle] = useState("");
   const [isAddingLayout, setIsAddingLayout] = useState<{
     sectionId: string | null;
     type: SectionLayout | null;
@@ -406,7 +408,10 @@ export function PhotoBookView({
     if (!section) return [];
 
     if (selectorModalState.type === "photos") {
-      return section.content.map((item) => item.photos).flat();
+      return section.content
+        .filter((item): item is PhotoLayout => isPhotoLayout(item))
+        .map((item) => item.photos)
+        .flat();
     } else {
       return section.content.filter(
         (item): item is TripNote => item.type === "quote"
@@ -579,6 +584,32 @@ export function PhotoBookView({
       )
     );
     toast.success("Note removed");
+  };
+
+  const handleEditSectionTitle = (sectionId: string) => {
+    const section = sections.find((s) => s.id === sectionId);
+    if (section) {
+      setEditingSectionId(sectionId);
+      setEditingSectionTitle(section.title);
+    }
+  };
+
+  const handleSaveSectionTitle = (sectionId: string) => {
+    setSections(
+      sections.map((section) =>
+        section.id === sectionId
+          ? { ...section, title: editingSectionTitle.trim() }
+          : section
+      )
+    );
+    setEditingSectionId(null);
+    setEditingSectionTitle("");
+    toast.success("Section title updated");
+  };
+
+  const handleCancelEdit = () => {
+    setEditingSectionId(null);
+    setEditingSectionTitle("");
   };
 
   const renderSectionContent = (section: Section) => {
@@ -791,9 +822,48 @@ export function PhotoBookView({
         {sections.map((section, index) => (
           <div key={section.id} className="bg-white rounded-xl shadow-sm p-6">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-semibold text-center flex-grow">
-                {section.title}
-              </h2>
+              {editingSectionId === section.id ? (
+                <div className="flex-grow flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={editingSectionTitle}
+                    onChange={(e) => setEditingSectionTitle(e.target.value)}
+                    className="flex-grow px-4 py-2 border rounded-lg text-2xl font-semibold"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        handleSaveSectionTitle(section.id);
+                      } else if (e.key === "Escape") {
+                        handleCancelEdit();
+                      }
+                    }}
+                  />
+                  <button
+                    onClick={() => handleSaveSectionTitle(section.id)}
+                    className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={handleCancelEdit}
+                    className="px-3 py-2 text-gray-600 hover:text-gray-700"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <div
+                  className="flex-grow group relative cursor-pointer"
+                  onClick={() => handleEditSectionTitle(section.id)}
+                >
+                  <h2 className="text-2xl font-semibold text-gray-900 group-hover:text-blue-600">
+                    {section.title}
+                  </h2>
+                  <span className="absolute inset-0 opacity-0 group-hover:opacity-100 text-xs text-blue-600 flex items-center justify-center">
+                    Click to edit
+                  </span>
+                </div>
+              )}
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => handleMoveSection(section.id, "up")}
